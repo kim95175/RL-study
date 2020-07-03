@@ -22,6 +22,8 @@ class DQN:
         self.state_size = self.env.observation_space.shape[0]
         self.action_size = self.env.action_space.n
         self.hidden_size = 32
+        print("State : ", self.env.observation_space)
+        print("Action : ", self.action_size)
 
         self.double_q = double_q  # Double DQN        구현 시 True로 설정, 미구현 시 False
         self.per = per              # PER               구현 시 True로 설정, 미구현 시 False
@@ -46,7 +48,7 @@ class DQN:
         model.add(layers.Dense(self.hidden_size, activation='relu', input_dim= (self.state_size) ))
         model.add(layers.Dense(self.hidden_size, activation='relu'))
         model.add(layers.Dense(self.action_size, activation='linear'))
-        model.compile(loss='mse', optimizer=keras.optimizers.RMSprop(lr=LEARNING_RATE))
+        model.compile(loss='binary_crossentropy', optimizer='adam', metrics=['accuracy'])
         return model
 
 
@@ -55,7 +57,7 @@ class DQN:
         if(np.random.rand() < self.eps) :
             return self.env.action_space.sample()
         else:
-            state = state.reshape(1,2)
+            state = state.reshape(128,1)
             return np.argmax(self.local_network.predict(state))
 
     def train_minibatch(self, mini_batch):
@@ -63,11 +65,11 @@ class DQN:
         samples = np.array(mini_batch)
         state, action, reward, next_state, done = np.hsplit(samples, 5)
         sampe_states = np.concatenate((np.squeeze(state[:])), axis = 0)
-        sampe_states = np.reshape(sampe_states, (self.batch_size, 2))
+        sampe_states = np.reshape(sampe_states, (self.batch_size, 128))
         sample_rewards = reward.reshape(self.batch_size,).astype(float)
         Q = self.local_network.predict(sampe_states)
         sampe_nstates = np.concatenate((np.squeeze(next_state[:])), axis = 0)
-        sampe_nstates = np.reshape(sampe_nstates, (self.batch_size, 2))
+        sampe_nstates = np.reshape(sampe_nstates, (self.batch_size, 128))
         dones = np.concatenate(done).astype(bool)
         not_dones = (dones^1).astype(float)
         dones = dones.astype(float)
@@ -112,6 +114,7 @@ class DQN:
             multi_done = []
             # episode 시작
             while not done:
+                #print("state = ", state.shape)
                 action = self.predict(state)
                 next_state, reward, done, _ = self.env.step(action)
                 tmp_reward = reward
